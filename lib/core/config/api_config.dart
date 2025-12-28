@@ -1,6 +1,7 @@
 class ApiConfig {
-  // TODO: Replace this with your ngrok URL after running: ngrok http 8000
-  // Example: 'https://abc123.ngrok-free.app'
+  // Production backend URL (Render.com deployment)
+  // For local development, change to: 'http://192.168.31.157:8000' or your local IP
+  // static const String baseUrl = 'https://trinetra-backend.onrender.com';
   static const String baseUrl =
       'https://overprosperous-aviana-nontextually.ngrok-free.dev';
 

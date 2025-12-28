@@ -286,12 +286,17 @@ class MapService {
   /// Handle drone location update
   void _handleDroneUpdate(Map<String, dynamic> data) {
     try {
+      print('🚁 DRONE UPDATE RECEIVED: $data');
       final drone = DroneLocation.fromJson(data);
       _drones[drone.droneId] = drone;
       _dronesController.add(Map.from(_drones));
-      print('MapService: Updated drone ${drone.droneId}');
+      print(
+        '✅ MapService: Updated drone ${drone.droneId} at (${drone.lat}, ${drone.lng}), isLive: ${drone.isLive}',
+      );
+      print('📊 Total drones in memory: ${_drones.length}');
     } catch (e) {
-      print('MapService: Error handling drone update: $e');
+      print('❌ MapService: Error handling drone update: $e');
+      print('❌ Problem data: $data');
     }
   }
 

@@ -41,7 +41,7 @@ class _QuickLoginScreenState extends State<QuickLoginScreen> {
 
     setState(() => _isLoading = true);
     try {
-      const String baseUrl = 'http://192.168.31.157:8000';
+      const String baseUrl = 'https://trinetra-backend.onrender.com';
       var response = await http.post(
         Uri.parse(
           '$baseUrl/api/send-otp?mobile_number=${_mobileController.text.trim()}',
@@ -62,7 +62,7 @@ class _QuickLoginScreenState extends State<QuickLoginScreen> {
   Future<void> _verifyAndLogin() async {
     setState(() => _isLoading = true);
     try {
-      const String baseUrl = 'http://192.168.31.157:8000';
+      const String baseUrl = 'https://trinetra-backend.onrender.com';
 
       // 1. Verify OTP
       var otpResponse = await http.post(

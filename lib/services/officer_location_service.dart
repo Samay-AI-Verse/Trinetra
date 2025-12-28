@@ -106,8 +106,14 @@ class OfficerLocationService {
   /// Send location to backend
   Future<void> _sendLocation(String officerId, String officerName) async {
     try {
+      // Use medium accuracy for background updates (faster, less battery)
+      // Medium accuracy: 10-30m precision, sufficient for officer tracking
+      // High accuracy would drain battery unnecessarily for periodic updates
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(
+          seconds: 10,
+        ), // Fail gracefully if GPS unavailable
       );
 
       await http

@@ -60,9 +60,18 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
     });
 
     _dronesSubscription = _mapService.dronesStream.listen((drones) {
+      print(
+        '📡 OfficerMapTab: Received drones update - ${drones.length} drones',
+      );
+      drones.forEach((id, drone) {
+        print(
+          '   - Drone $id: (${drone.lat}, ${drone.lng}), isLive: ${drone.isLive}',
+        );
+      });
       if (mounted) {
         setState(() {
           _drones = drones;
+          print('🗺️ Map state updated with ${_drones.length} drones');
         });
       }
     });
@@ -117,13 +126,26 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
         return;
       }
 
-      // Get current position with best accuracy
+      // OPTIMIZATION 1: Get last known location immediately (instant feedback)
+      // This provides immediate visual feedback while waiting for fresh GPS fix
+      Position? lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null && mounted) {
+        setState(() {
+          _currentLocation = LatLng(lastKnown.latitude, lastKnown.longitude);
+          _currentAccuracy = lastKnown.accuracy;
+        });
+      }
+
+      // OPTIMIZATION 2: Get fresh location with high accuracy (faster than 'best')
+      // High accuracy: ~10m precision, 2-5 seconds
+      // Best accuracy: ~5m precision, 20-30 seconds (too slow for UX)
       Position position =
           await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.best,
+            desiredAccuracy:
+                LocationAccuracy.high, // Changed from 'best' to 'high'
             forceAndroidLocationManager: false,
           ).timeout(
-            const Duration(seconds: 8),
+            const Duration(seconds: 5), // Reduced from 8 to 5 seconds
             onTimeout: () {
               throw TimeoutException('GPS timeout');
             },
@@ -339,8 +361,16 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
 
   /// Build drone markers (only real connected drones)
   List<Marker> _buildDroneMarkers() {
+    print('🎨 Building drone markers... Total drones: ${_drones.length}');
+
     // Filter to only show live/connected drones
-    return _drones.values.where((drone) => drone.isLive).map((drone) {
+    final liveDrones = _drones.values.where((drone) => drone.isLive).toList();
+    print('   Live drones: ${liveDrones.length}');
+
+    final markers = liveDrones.map((drone) {
+      print(
+        '   Creating marker for drone ${drone.droneId} at (${drone.lat}, ${drone.lng})',
+      );
       return Marker(
         point: LatLng(drone.lat, drone.lng),
         width: 40,
@@ -355,6 +385,9 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
         ),
       );
     }).toList();
+
+    print('✅ Created ${markers.length} drone markers');
+    return markers;
   }
 
   /// Build officer markers (excluding current officer)
