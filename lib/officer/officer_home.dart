@@ -123,7 +123,9 @@ class _OfficerHomeState extends State<OfficerHome> {
       backgroundColor: Colors.white,
       extendBody: true,
       extendBodyBehindAppBar: true, // For full screen map behind app bar
-      appBar: const CreativeAppBar(title: 'TRINETRA'),
+      appBar: CreativeAppBar(
+        title: (_currentIndex == 0 || _currentIndex == 3) ? 'TRINETRA' : '',
+      ),
       body: _tabs[_currentIndex],
       bottomNavigationBar: CreativeBottomNav(
         currentIndex: _currentIndex,

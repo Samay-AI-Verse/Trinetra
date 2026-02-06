@@ -9,6 +9,7 @@ import '../services/sos_service.dart';
 import 'widgets/sos_button.dart';
 import 'widgets/sos_bottom_sheet.dart';
 import 'widgets/sos_alert_banner.dart';
+import 'widgets/sos_countdown_overlay.dart';
 import 'package:image_picker/image_picker.dart';
 import 'face_scan_screen.dart';
 
@@ -783,6 +784,47 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
     );
   }
 
+  void _triggerHighEmergencyWithCountdown(BuildContext context) {
+    // Show countdown overlay
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => SOSCountdownOverlay(
+        onComplete: () async {
+          Navigator.pop(context); // Close countdown
+
+          try {
+            await _sosService.triggerHighEmergency();
+            setState(() {
+              _isMySosActive = true;
+            });
+
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🚨 Emergency alert sent!'),
+                  backgroundColor: Color(0xFFDC2626),
+                ),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Failed to send alert: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        },
+        onCancel: () {
+          Navigator.pop(context); // Close countdown
+        },
+      ),
+    );
+  }
+
   /// Handle SOS button press
   void _handleSOSButtonPress() {
     if (_isMySosActive) {
@@ -832,20 +874,8 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
         ),
       );
     } else {
-      // Trigger SOS Options
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
-        builder: (context) => SOSBottomSheet(
-          sosService: _sosService,
-          onSOSTriggered: () {
-            setState(() {
-              _isMySosActive = true;
-            });
-          },
-        ),
-      );
+      // DIRECT TRIGGER - No bottom sheet, straight to countdown
+      _triggerHighEmergencyWithCountdown(context);
     }
   }
 

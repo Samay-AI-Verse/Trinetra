@@ -59,61 +59,45 @@ class _OfficerAlertsTabState extends State<OfficerAlertsTab> {
       padding: const EdgeInsets.only(
         left: 24,
         right: 24,
-        top: 120,
+        top: 60, // Moved up more
         bottom: 100,
       ),
       children: [
         // Header
-        Text(
-          'Emergency Alerts',
-          style: GoogleFonts.outfit(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
+        Center(
+          child: Column(
+            children: [
+              Text(
+                'Emergency Alerts',
+                style: GoogleFonts.outfit(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Real-time SOS alerts from nearby officers',
+                style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Real-time SOS alerts from nearby officers',
-          style: GoogleFonts.inter(fontSize: 14, color: Colors.grey[600]),
         ),
         const SizedBox(height: 24),
 
-        // SOS Alerts
-        if (_sosAlerts.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(48),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.shield_outlined,
-                    size: 64,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No emergency alerts',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      color: Colors.grey[500],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'SOS alerts from nearby officers will appear here',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: Colors.grey[400],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          )
-        else
+        if (_sosAlerts.isEmpty) ...[
+          _SOSAlertCard(
+            officerName: 'Officer DEMO',
+            badgeNumber: 'DEMO-001',
+            emergencyType: 'high_emergency',
+            time: 'Just now',
+            lat: 0.0,
+            lng: 0.0,
+            message: 'This is a demo emergency alert for testing UI.',
+          ),
+        ] else
           ..._sosAlerts.map(
             (alert) => _SOSAlertCard(
               officerName: alert['officer_name'] as String,
@@ -125,28 +109,6 @@ class _OfficerAlertsTabState extends State<OfficerAlertsTab> {
               lng: (alert['lng'] as num).toDouble(),
             ),
           ),
-
-        // Placeholder alerts for demo
-        if (_sosAlerts.isEmpty) ...[
-          _AlertCard(
-            type: 'Crowd Gathering',
-            time: '12:05 PM',
-            status: 'Active',
-            color: Colors.orange,
-          ),
-          _AlertCard(
-            type: 'Fight Detected',
-            time: '11:45 AM',
-            status: 'Investigating',
-            color: Colors.red,
-          ),
-          _AlertCard(
-            type: 'Medical Emergency',
-            time: '10:30 AM',
-            status: 'Resolved',
-            color: Colors.green,
-          ),
-        ],
       ],
     );
   }
@@ -185,17 +147,17 @@ class _SOSAlertCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFDC2626), width: 2),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFFDC2626).withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -206,10 +168,10 @@ class _SOSAlertCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFDC2626).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.shield,
@@ -276,7 +238,7 @@ class _SOSAlertCard extends StatelessWidget {
           if (message != null) ...[
             const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: Colors.grey[50],
                 borderRadius: BorderRadius.circular(8),
@@ -298,7 +260,7 @@ class _SOSAlertCard extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             children: [
               Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
@@ -331,17 +293,17 @@ class _AlertCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -349,14 +311,14 @@ class _AlertCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(Icons.warning_amber_rounded, color: color, size: 24),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,7 +343,7 @@ class _AlertCard extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: Colors.grey[100],
               borderRadius: BorderRadius.circular(8),
