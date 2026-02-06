@@ -25,6 +25,9 @@ class ApiConfig {
   static String sosCancel(String officerId) =>
       '$baseUrl/api/officers/$officerId/sos/cancel';
 
+  static String officerDetails(String officerId) =>
+      '$baseUrl/api/officer/$officerId/details';
+
   // Drone endpoints
   static const String drones = '$baseUrl/api/drones';
 
