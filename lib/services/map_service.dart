@@ -13,6 +13,10 @@ class OfficerLocation {
   final bool isOnline;
   final double? accuracy;
   final String timestamp;
+  final bool sosActive;
+  final String? sosType;
+  final String? sosMessage;
+  final String? sosTriggeredAt;
 
   OfficerLocation({
     required this.officerId,
@@ -23,6 +27,10 @@ class OfficerLocation {
     required this.isOnline,
     this.accuracy,
     required this.timestamp,
+    this.sosActive = false,
+    this.sosType,
+    this.sosMessage,
+    this.sosTriggeredAt,
   });
 
   factory OfficerLocation.fromJson(Map<String, dynamic> json) {
@@ -38,6 +46,10 @@ class OfficerLocation {
           : null,
       timestamp:
           json['timestamp'] as String? ?? DateTime.now().toIso8601String(),
+      sosActive: json['sos_active'] as bool? ?? false,
+      sosType: json['sos_type'] as String?,
+      sosMessage: json['sos_message'] as String?,
+      sosTriggeredAt: json['sos_triggered_at'] as String?,
     );
   }
 }
@@ -99,12 +111,19 @@ class MapService {
   final _dronesController =
       StreamController<Map<String, DroneLocation>>.broadcast();
   final _connectionController = StreamController<bool>.broadcast();
+  final _sosAlertController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _notificationController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   Stream<Map<String, OfficerLocation>> get officersStream =>
       _officersController.stream;
   Stream<Map<String, DroneLocation>> get dronesStream =>
       _dronesController.stream;
   Stream<bool> get connectionStream => _connectionController.stream;
+  Stream<Map<String, dynamic>> get sosAlertStream => _sosAlertController.stream;
+  Stream<Map<String, dynamic>> get notificationStream =>
+      _notificationController.stream;
 
   // Current state
   final Map<String, OfficerLocation> _officers = {};
@@ -173,6 +192,15 @@ class MapService {
         case 'status':
           _handleDroneStatus(data);
           break;
+        case 'officer_sos_alert':
+          _handleSOSAlert(data);
+          break;
+        case 'officer_sos_cancelled':
+          _handleSOSCancelled(data);
+          break;
+        case 'notification':
+          _handleNotification(data);
+          break;
         default:
           print('MapService: Unknown message type: $type');
       }
@@ -233,6 +261,10 @@ class MapService {
         timestamp:
             lastLocation['timestamp'] as String? ??
             DateTime.now().toIso8601String(),
+        sosActive: data['sos_active'] as bool? ?? false,
+        sosType: data['sos_type'] as String?,
+        sosMessage: data['sos_message'] as String?,
+        sosTriggeredAt: data['sos_triggered_at'] as String?,
       );
     } catch (e) {
       print('MapService: Error parsing officer: $e');
@@ -317,6 +349,10 @@ class MapService {
           isOnline: isOnline,
           accuracy: officer.accuracy,
           timestamp: officer.timestamp,
+          sosActive: officer.sosActive,
+          sosType: officer.sosType,
+          sosMessage: officer.sosMessage,
+          sosTriggeredAt: officer.sosTriggeredAt,
         );
         _officersController.add(Map.from(_officers));
       }
@@ -367,11 +403,116 @@ class MapService {
     _handleDisconnection();
   }
 
+  /// Handle SOS alert
+  void _handleSOSAlert(Map<String, dynamic> data) {
+    try {
+      print('🚨 SOS ALERT RECEIVED: ${data['officer_id']}');
+
+      final officerId = data['officer_id'] as String;
+      final lat = (data['lat'] as num).toDouble();
+      final lng = (data['lng'] as num).toDouble();
+
+      // Update officer state with SOS
+      if (_officers.containsKey(officerId)) {
+        final officer = _officers[officerId]!;
+        _officers[officerId] = OfficerLocation(
+          officerId: officer.officerId,
+          officerName: officer.officerName,
+          badgeNumber: officer.badgeNumber,
+          lat: lat,
+          lng: lng,
+          isOnline: officer.isOnline,
+          accuracy: officer.accuracy,
+          timestamp:
+              data['triggered_at'] as String? ??
+              DateTime.now().toIso8601String(),
+          sosActive: true,
+          sosType: data['emergency_type'] as String?,
+          sosMessage: data['message_text'] as String?,
+          sosTriggeredAt: data['triggered_at'] as String?,
+        );
+      } else {
+        // Create new officer entry
+        _officers[officerId] = OfficerLocation(
+          officerId: officerId,
+          officerName: data['officer_name'] as String,
+          badgeNumber: data['badge_number'] as String?,
+          lat: lat,
+          lng: lng,
+          isOnline: true,
+          accuracy: null,
+          timestamp:
+              data['triggered_at'] as String? ??
+              DateTime.now().toIso8601String(),
+          sosActive: true,
+          sosType: data['emergency_type'] as String?,
+          sosMessage: data['message_text'] as String?,
+          sosTriggeredAt: data['triggered_at'] as String?,
+        );
+      }
+
+      _officersController.add(Map.from(_officers));
+      _sosAlertController.add(data);
+      print('✅ SOS alert processed');
+    } catch (e) {
+      print('❌ Error handling SOS alert: $e');
+    }
+  }
+
+  /// Handle SOS cancellation
+  void _handleSOSCancelled(Map<String, dynamic> data) {
+    try {
+      print('❌ SOS CANCELLED: ${data['officer_id']}');
+
+      final officerId = data['officer_id'] as String;
+
+      if (_officers.containsKey(officerId)) {
+        final officer = _officers[officerId]!;
+        _officers[officerId] = OfficerLocation(
+          officerId: officer.officerId,
+          officerName: officer.officerName,
+          badgeNumber: officer.badgeNumber,
+          lat: officer.lat,
+          lng: officer.lng,
+          isOnline: officer.isOnline,
+          accuracy: officer.accuracy,
+          timestamp: officer.timestamp,
+          sosActive: false,
+          sosType: null,
+          sosMessage: null,
+          sosTriggeredAt: null,
+        );
+        _officersController.add(Map.from(_officers));
+      }
+
+      print('✅ SOS cancellation processed');
+    } catch (e) {
+      print('❌ Error handling SOS cancellation: $e');
+    }
+  }
+
+  /// Handle normal notification
+  void _handleNotification(Map<String, dynamic> data) {
+    try {
+      print('📬 NOTIFICATION RECEIVED: ${data['notification_type']}');
+
+      // Only process normal notifications (emergency ones are handled as SOS alerts)
+      if (data['notification_type'] == 'normal') {
+        _notificationController.add(data);
+        print('✅ Notification processed: ${data['title']}');
+      }
+    } catch (e) {
+      print('❌ Error handling notification: $e');
+    }
+  }
+
   /// Dispose resources
   void dispose() {
     disconnect();
     _officersController.close();
     _dronesController.close();
     _connectionController.close();
+    _sosAlertController.close();
+    _notificationController.close();
   }
 }

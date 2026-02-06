@@ -4,6 +4,7 @@ import 'dart:io';
 import '../core/widgets/creative_app_bar.dart';
 import '../core/widgets/creative_bottom_nav.dart';
 import '../services/officer_location_service.dart';
+import '../services/map_service.dart';
 import 'officer_map_tab.dart';
 import 'officer_alerts_tab.dart';
 import 'officer_profile_tab.dart';
@@ -18,13 +19,23 @@ class OfficerHome extends StatefulWidget {
 
 class _OfficerHomeState extends State<OfficerHome> {
   final OfficerLocationService _locationService = OfficerLocationService();
+  final MapService _mapService = MapService();
   bool _locationPermissionAsked = false;
 
   @override
   void initState() {
     super.initState();
     _secureScreen();
-    _initializeLocationTracking();
+    _initializeServices();
+  }
+
+  Future<void> _initializeServices() async {
+    // Initialize MapService WebSocket connection
+    await _mapService.connect();
+    print('✅ MapService connected for notifications and alerts');
+
+    // Initialize location tracking
+    await _initializeLocationTracking();
   }
 
   Future<void> _secureScreen() async {
@@ -93,6 +104,7 @@ class _OfficerHomeState extends State<OfficerHome> {
   @override
   void dispose() {
     _locationService.stopTracking();
+    _mapService.disconnect();
     super.dispose();
   }
 

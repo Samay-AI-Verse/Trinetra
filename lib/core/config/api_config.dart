@@ -2,8 +2,7 @@ class ApiConfig {
   // Production backend URL (Render.com deployment)
   // For local development, change to: 'http://192.168.31.157:8000' or your local IP
   // static const String baseUrl = 'https://trinetra-backend.onrender.com';
-  static const String baseUrl =
-      'https://overprosperous-aviana-nontextually.ngrok-free.dev';
+  static const String baseUrl = 'https://trinetra-backend.onrender.com';
 
   // API Endpoints
   static const String sendOtp = '$baseUrl/api/send-otp';
@@ -19,6 +18,12 @@ class ApiConfig {
       '$baseUrl/api/officers/$officerId/location';
   static String officerStatus(String officerId) =>
       '$baseUrl/api/officers/$officerId/status';
+
+  // SOS Emergency Endpoints
+  static String sosTrigger(String officerId) =>
+      '$baseUrl/api/officers/$officerId/sos';
+  static String sosCancel(String officerId) =>
+      '$baseUrl/api/officers/$officerId/sos/cancel';
 
   // Drone endpoints
   static const String drones = '$baseUrl/api/drones';

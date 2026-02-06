@@ -5,6 +5,12 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:async';
 import '../services/map_service.dart';
+import '../services/sos_service.dart';
+import 'widgets/sos_button.dart';
+import 'widgets/sos_bottom_sheet.dart';
+import 'widgets/sos_alert_banner.dart';
+import 'package:image_picker/image_picker.dart';
+import 'face_scan_screen.dart';
 
 class OfficerMapTab extends StatefulWidget {
   const OfficerMapTab({super.key});
@@ -16,6 +22,7 @@ class OfficerMapTab extends StatefulWidget {
 class _OfficerMapTabState extends State<OfficerMapTab> {
   final MapController _mapController = MapController();
   final MapService _mapService = MapService();
+  final SOSService _sosService = SOSService();
   final _storage = const FlutterSecureStorage();
 
   // Current officer location
@@ -29,11 +36,16 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
   // Subscriptions
   StreamSubscription? _officersSubscription;
   StreamSubscription? _dronesSubscription;
+  StreamSubscription? _sosAlertSubscription;
   Timer? _locationUpdateTimer;
 
   // Location tracking state
   double? _currentAccuracy;
   bool _isTrackingLocation = false;
+
+  // SOS state
+  bool _isMySosActive = false;
+  Map<String, dynamic>? _currentSOSAlert;
 
   @override
   void initState() {
@@ -75,12 +87,40 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
         });
       }
     });
+
+    // Subscribe to SOS alerts
+    _sosAlertSubscription = _mapService.sosAlertStream.listen((alert) {
+      print('🚨 SOS Alert received in map tab');
+      if (mounted && alert['officer_id'] != _currentOfficerId) {
+        setState(() {
+          _currentSOSAlert = alert;
+        });
+      }
+
+      // Check if this is my SOS
+      if (mounted && alert['officer_id'] == _currentOfficerId) {
+        setState(() {
+          _isMySosActive = true;
+        });
+      }
+    });
   }
 
   void _updateCurrentLocation() {
     if (_currentOfficerId != null && _officers.containsKey(_currentOfficerId)) {
       final officer = _officers[_currentOfficerId!]!;
       _currentLocation = LatLng(officer.lat, officer.lng);
+
+      // Update my SOS status
+      if (officer.sosActive && !_isMySosActive) {
+        setState(() {
+          _isMySosActive = true;
+        });
+      } else if (!officer.sosActive && _isMySosActive) {
+        setState(() {
+          _isMySosActive = false;
+        });
+      }
     }
   }
 
@@ -225,6 +265,7 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
     _stopLiveLocationTracking();
     _officersSubscription?.cancel();
     _dronesSubscription?.cancel();
+    _sosAlertSubscription?.cancel();
     super.dispose();
   }
 
@@ -302,6 +343,53 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
             child: const Icon(Icons.my_location, color: Colors.white),
           ),
         ),
+
+        // SOS Button
+        // SOS Button (Top/First)
+        Positioned(
+          right: 24,
+          bottom: 270,
+          child: SOSButton(
+            isActive: _isMySosActive,
+            onPressed: _handleSOSButtonPress,
+          ),
+        ),
+
+        // Face Scan Button (Bottom/Second)
+        Positioned(right: 24, bottom: 190, child: _buildFaceScanButton()),
+
+        // SOS Alert Banner
+        if (_currentSOSAlert != null)
+          Positioned(
+            top: 100,
+            left: 0,
+            right: 0,
+            child: SOSAlertBanner(
+              officerName: _currentSOSAlert!['officer_name'] as String,
+              badgeNumber: _currentSOSAlert!['badge_number'] as String?,
+              emergencyType: _currentSOSAlert!['emergency_type'] as String,
+              message: _currentSOSAlert!['message_text'] as String?,
+              sosLocation: LatLng(
+                (_currentSOSAlert!['lat'] as num).toDouble(),
+                (_currentSOSAlert!['lng'] as num).toDouble(),
+              ),
+              currentLocation: _currentLocation,
+              onNavigate: () {
+                _mapController.move(
+                  LatLng(
+                    (_currentSOSAlert!['lat'] as num).toDouble(),
+                    (_currentSOSAlert!['lng'] as num).toDouble(),
+                  ),
+                  16.0,
+                );
+              },
+              onDismiss: () {
+                setState(() {
+                  _currentSOSAlert = null;
+                });
+              },
+            ),
+          ),
 
         // Stats Card - Bottom Left
         Positioned(
@@ -398,24 +486,78 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
               officer.isOnline && officer.officerId != _currentOfficerId,
         )
         .map((officer) {
+          // Use red marker for SOS, normal marker otherwise
+          final markerWidget = officer.sosActive
+              ? _buildSOSMarker(officer)
+              : _buildNormalOfficerMarker(officer);
+
           return Marker(
             point: LatLng(officer.lat, officer.lng),
             width: 40,
             height: 40,
             child: GestureDetector(
               onTap: () => _showOfficerInfo(officer),
-              child: Opacity(
-                opacity: 0.7,
-                child: Image.asset(
-                  'assets/icons/officer_marker.png',
-                  width: 40,
-                  height: 40,
-                ),
-              ),
+              child: markerWidget,
             ),
           );
         })
         .toList();
+  }
+
+  /// Build normal officer marker
+  Widget _buildNormalOfficerMarker(OfficerLocation officer) {
+    return Opacity(
+      opacity: 0.7,
+      child: Image.asset(
+        'assets/icons/officer_marker.png',
+        width: 40,
+        height: 40,
+      ),
+    );
+  }
+
+  /// Build SOS officer marker with pulsing animation
+  Widget _buildSOSMarker(OfficerLocation officer) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.8, end: 1.2),
+      duration: const Duration(milliseconds: 1500),
+      curve: Curves.easeOut,
+      onEnd: () {
+        if (mounted) setState(() {});
+      },
+      builder: (context, value, child) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Pulsing circle
+            Container(
+              width: 40 * value,
+              height: 40 * value,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFDC2626).withOpacity(0.3 * (1.2 - value)),
+                border: Border.all(
+                  color: const Color(
+                    0xFFDC2626,
+                  ).withOpacity(0.5 * (1.2 - value)),
+                  width: 2,
+                ),
+              ),
+            ),
+            // Red marker icon
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFDC2626),
+              ),
+              child: const Icon(Icons.emergency, color: Colors.white, size: 24),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   /// Show drone information
@@ -493,18 +635,49 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
           children: [
             Row(
               children: [
-                const Icon(Icons.person, size: 32),
+                Icon(
+                  officer.sosActive ? Icons.emergency : Icons.person,
+                  size: 32,
+                  color: officer.sosActive
+                      ? const Color(0xFFDC2626)
+                      : Colors.black,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        officer.officerName,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            officer.officerName,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (officer.sosActive) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDC2626),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'SOS',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       if (officer.badgeNumber != null)
                         Text(
@@ -533,6 +706,49 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
               'Status',
               officer.isOnline ? '🟢 Online' : '🔴 Offline',
             ),
+            if (officer.sosActive) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDC2626).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFFDC2626).withOpacity(0.3),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.emergency,
+                          color: Color(0xFFDC2626),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'EMERGENCY ALERT',
+                          style: TextStyle(
+                            color: const Color(0xFFDC2626),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (officer.sosMessage != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        officer.sosMessage!,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -563,6 +779,107 @@ class _OfficerMapTabState extends State<OfficerMapTab> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Handle SOS button press
+  void _handleSOSButtonPress() {
+    if (_isMySosActive) {
+      // Cancel SOS
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Cancel Emergency'),
+          content: const Text(
+            'Are you sure you want to cancel the emergency alert?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('No'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                try {
+                  await _sosService.cancelSOS();
+                  setState(() {
+                    _isMySosActive = false;
+                  });
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Emergency alert cancelled'),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to cancel SOS: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Yes, Cancel'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Trigger SOS Options
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (context) => SOSBottomSheet(
+          sosService: _sosService,
+          onSOSTriggered: () {
+            setState(() {
+              _isMySosActive = true;
+            });
+          },
+        ),
+      );
+    }
+  }
+
+  void _handleFaceScan() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const FaceScanScreen()),
+    );
+  }
+
+  Widget _buildFaceScanButton() {
+    return GestureDetector(
+      onTap: _handleFaceScan,
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.black, // Distinct from red SOS
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 10,
+              spreadRadius: 2,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+        ),
+        child: const Icon(
+          Icons.face_retouching_natural,
+          color: Colors.white,
+          size: 28,
+        ),
       ),
     );
   }
