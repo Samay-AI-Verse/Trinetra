@@ -53,6 +53,9 @@ dependencies:
   screen_protector: ^1.4.12
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
+  flutter_local_notifications: ^18.0.1
+  firebase_core: ^4.4.0
+  firebase_messaging: ^16.1.1
 
 dev_dependencies:
   flutter_test:

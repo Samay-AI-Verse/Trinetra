@@ -2,7 +2,8 @@ class ApiConfig {
   // Production backend URL (Render.com deployment)
   // For local development, change to: 'http://192.168.31.157:8000' or your local IP
   // static const String baseUrl = 'https://trinetra-backend.onrender.com';
-  static const String baseUrl = 'https://trinetra-backend.onrender.com';
+  static const String baseUrl =
+      'https://overprosperous-aviana-nontextually.ngrok-free.dev';
 
   // API Endpoints
   static const String sendOtp = '$baseUrl/api/send-otp';

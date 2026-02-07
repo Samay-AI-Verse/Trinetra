@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
+import 'package:firebase_core/firebase_core.dart';
 import 'auth/role_selection_screen.dart';
 import 'auth/registration_flow.dart';
 import 'auth/officer_auth_status.dart';
@@ -14,6 +15,15 @@ import 'core/config/api_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp();
+    print('✅ Firebase initialized successfully');
+  } catch (e) {
+    print('❌ Firebase initialization failed: $e');
+  }
+
   runApp(const TrinetraApp());
 }
 

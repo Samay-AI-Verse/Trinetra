@@ -6,7 +6,6 @@ import '../core/widgets/creative_bottom_nav.dart';
 import '../services/officer_location_service.dart';
 import '../services/map_service.dart';
 import 'officer_map_tab.dart';
-import 'officer_alerts_tab.dart';
 import 'officer_profile_tab.dart';
 import 'officer_notifications_tab.dart';
 
@@ -110,12 +109,13 @@ class _OfficerHomeState extends State<OfficerHome> {
 
   int _currentIndex = 0;
 
-  final List<Widget> _tabs = const [
-    OfficerMapTab(),
-    OfficerNotificationsTab(),
-    OfficerAlertsTab(),
-    OfficerProfileTab(),
-  ];
+  List<Widget> _getTabs() {
+    return [
+      const OfficerMapTab(),
+      const OfficerNotificationsTab(),
+      const OfficerProfileTab(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -126,17 +126,16 @@ class _OfficerHomeState extends State<OfficerHome> {
       appBar: CreativeAppBar(
         title: (_currentIndex == 0 || _currentIndex == 3) ? 'TRINETRA' : '',
       ),
-      body: _tabs[_currentIndex],
+      body: _getTabs()[_currentIndex],
       bottomNavigationBar: CreativeBottomNav(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         items: [
           CreativeNavItem(icon: Icons.map_outlined, label: 'MAP'),
           CreativeNavItem(
-            icon: Icons.notifications_none_rounded,
+            icon: Icons.notifications_active_outlined,
             label: 'NOTIFY',
           ),
-          CreativeNavItem(icon: Icons.warning_amber_rounded, label: 'ALERTS'),
           CreativeNavItem(icon: Icons.person_outline, label: 'PROFILE'),
         ],
       ),
